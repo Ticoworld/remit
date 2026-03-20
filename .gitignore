@@ -33,3 +33,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI assistant config
+.claude/
+.devghost/
+
+# scratch / temp files generated during development
+genesis_tx_hashes.txt
+*genesis.json
