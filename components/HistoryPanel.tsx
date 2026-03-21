@@ -1,7 +1,8 @@
 "use client";
 
-import { AiAttemptOutcome, ExecutionLogEntry } from "@/lib/types";
+import { ExecutionLogEntry } from "@/lib/types";
 import { NetworkConfig, getTxExplorerUrl } from "@/lib/network-config";
+import { useState } from "react";
 
 interface Props {
   entries: ExecutionLogEntry[];
@@ -9,145 +10,142 @@ interface Props {
   networkConfig: NetworkConfig;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  allowed:          "text-green-400",
-  blocked:          "text-red-400",
-  "approval-needed": "text-amber-400",
-};
-
-const AI_OUTCOME_SHORT: Record<AiAttemptOutcome, string> = {
-  "ai-accepted":       "AI ✓",
-  "ai-low-confidence": "AI low-conf",
-  "ai-invalid-schema": "AI bad-schema",
-  "ai-unparsed":       "AI unparsed",
-  "ai-error":          "AI error",
-  "ai-skipped":        "AI skipped",
-};
-
-const AI_OUTCOME_COLOR: Record<AiAttemptOutcome, string> = {
-  "ai-accepted":       "text-green-600",
-  "ai-low-confidence": "text-amber-500",
-  "ai-invalid-schema": "text-red-500",
-  "ai-unparsed":       "text-neutral-600",
-  "ai-error":          "text-red-500",
-  "ai-skipped":        "text-neutral-700",
+const ACCENT_COLOR: Record<string, { bg: string; text: string; border: string }> = {
+  allowed: { bg: "bg-green-500/10", text: "text-green-500/80", border: "border-l-green-600" },
+  blocked: { bg: "bg-red-500/10", text: "text-red-500/80", border: "border-l-red-700" },
+  "approval-needed": { bg: "bg-amber-500/10", text: "text-amber-500/80", border: "border-l-amber-600" },
 };
 
 export default function HistoryPanel({ entries, onClear, networkConfig }: Props) {
+  const [copiedTx, setCopiedTx] = useState<string | null>(null);
+
+  function handleCopy(txHash: string) {
+    navigator.clipboard.writeText(txHash);
+    setCopiedTx(txHash);
+    setTimeout(() => setCopiedTx(null), 2000);
+  }
+
+  // Reverse to show newest first
+  const displayEntries = [...entries].reverse();
+
   return (
-    <section className="border border-neutral-700 rounded-lg p-5 flex flex-col gap-3">
+    <section className="flex flex-col gap-4 bg-neutral-900/40 p-5 rounded-2xl border border-neutral-800/60 shadow-inner mt-4 transition-all duration-500">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-neutral-100">
-          Execution History
+        <h2 className="text-sm font-semibold text-neutral-100 flex items-center gap-2 tracking-tight">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-400">
+            <path d="M3 3v18h18" />
+            <path d="m19 9-5 5-4-4-3 3" />
+          </svg>
+          Runtime log
         </h2>
         {entries.length > 0 && (
           <button
             onClick={onClear}
-            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors uppercase tracking-widest font-semibold"
           >
-            Clear
+            Clear Activity
           </button>
         )}
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-sm text-neutral-500">No evaluations yet.</p>
+        <div className="flex items-center py-3 px-4 rounded-lg bg-neutral-950/30 border border-neutral-800/40 gap-2 w-fit">
+          <span className="w-1.5 h-1.5 rounded-full bg-neutral-700"></span>
+          <p className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase">No runtime activity</p>
+        </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {[...entries].reverse().map((entry) => {
-            const explorerUrl = entry.txHash
-              ? getTxExplorerUrl(entry.txHash, networkConfig)
-              : null;
+        <div className="flex flex-col gap-2 relative">
+          {displayEntries.map((e, index) => {
+            const timeStr = new Date(e.timestamp).toLocaleTimeString();
+            const accent = ACCENT_COLOR[e.result.status] || ACCENT_COLOR["blocked"];
+            const explorerUrl = e.txHash ? getTxExplorerUrl(e.txHash, networkConfig) : null;
+            
+            // Stagger initial load animation up to 10 items
+            const delayClass = index < 10 ? `delay-[${index * 50}ms]` : '';
 
             return (
               <div
-                key={entry.id}
-                className="flex flex-col gap-1.5 border-b border-neutral-800 pb-3 last:border-0 last:pb-0"
+                key={e.id}
+                className={`py-3 px-4 rounded-xl border border-neutral-800/80 bg-neutral-950 flex flex-col sm:flex-row sm:items-start justify-between gap-3 shadow-sm border-l-2 ${accent.border} animate-in fade-in slide-in-from-top-2 duration-400 ease-out fill-mode-both ${delayClass}`}
               >
-                {/* Top row: time · eval status · AI outcome · parser · approval */}
-                <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
-                  <span className="text-neutral-600">
-                    {new Date(entry.timestamp).toLocaleTimeString()}
+                {/* Left side: Task and metadata */}
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-neutral-200 truncate">
+                    {e.task}
                   </span>
-                  <span className={STATUS_COLOR[entry.result.status]}>
-                    {entry.result.status}
-                  </span>
-                  {entry.aiAttempt && (
-                    <>
-                      <span className="text-neutral-700">·</span>
-                      <span className={AI_OUTCOME_COLOR[entry.aiAttempt.outcome]}>
-                        {AI_OUTCOME_SHORT[entry.aiAttempt.outcome]}
+                  
+                  {e.result.action && (
+                    <div className="flex gap-3 text-[11px] font-mono text-neutral-500">
+                      <span>
+                        <span className="text-neutral-600">asset:</span>{" "}
+                        {e.result.action.asset}
                       </span>
-                      {entry.aiAttempt.confidence !== undefined && (
-                        <span className="text-neutral-700">
-                          {(entry.aiAttempt.confidence * 100).toFixed(0)}%
-                        </span>
-                      )}
-                    </>
-                  )}
-                  <span className="text-neutral-700">·</span>
-                  <span className="text-neutral-600">{entry.parserUsed} parser</span>
-                  {entry.approvalDecision && (
-                    <>
-                      <span className="text-neutral-700">·</span>
-                      <span
-                        className={
-                          entry.approvalDecision === "approved"
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }
-                      >
-                        {entry.approvalDecision}
+                      <span>
+                        <span className="text-neutral-600">amt:</span>{" "}
+                        {e.result.action.amount}
                       </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Raw task */}
-                <span className="text-sm font-mono text-neutral-200 break-all">
-                  {entry.task}
-                </span>
-
-                {/* Policy reason */}
-                <p className="text-xs text-neutral-500 italic">{entry.result.reason}</p>
-
-                {/* AI rationale */}
-                {entry.aiAttempt?.rationale && (
-                  <p className="text-xs text-neutral-700 italic">
-                    AI rationale: {entry.aiAttempt.rationale}
-                  </p>
-                )}
-
-                {/* Parsed action summary */}
-                <div className="flex gap-3 text-xs font-mono text-neutral-600">
-                  <span>{entry.result.action.asset}</span>
-                  <span>{entry.result.action.amount} CKB</span>
-                  <span className="break-all">{entry.result.action.recipient}</span>
-                </div>
-
-                {/* Tx hash + explorer */}
-                {entry.txHash && (
-                  <div className="flex flex-col gap-0.5">
-                    <div className="text-xs font-mono">
-                      <span className="text-neutral-600">tx </span>
-                      <span className="text-green-400 break-all">{entry.txHash}</span>
+                      <span className="truncate flex-1">
+                        <span className="text-neutral-600">to:</span>{" "}
+                        {e.result.action.recipient}
+                      </span>
                     </div>
-                    {explorerUrl ? (
-                      <a
-                        href={explorerUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
-                      >
-                        View on explorer ↗
-                      </a>
-                    ) : (
-                      <span className="text-xs text-neutral-700">
-                        Explorer unavailable (local devnet)
-                      </span>
-                    )}
+                  )}
+
+                  {e.result.reason && (
+                    <span className="text-xs text-neutral-400 font-medium">
+                      {e.result.reason}
+                    </span>
+                  )}
+                </div>
+
+                {/* Right side: Status and Tx Hash */}
+                <div className="flex flex-col sm:items-end gap-1 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-neutral-500">
+                      {timeStr}
+                    </span>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm ${accent.bg} ${accent.text}`}>
+                      {e.result.status}
+                    </span>
                   </div>
-                )}
+
+                  {e.txHash && (
+                    <div className="flex items-center gap-1.5 mt-1 bg-neutral-900 px-2 py-1 rounded-md border border-neutral-800 group">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500/50 animate-pulse"></span>
+                      <span className="text-[10px] font-mono text-neutral-400">
+                        {e.txHash.slice(0, 6)}...{e.txHash.slice(-4)}
+                      </span>
+                      {explorerUrl && (
+                        <a
+                           href={explorerUrl}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           className="text-[10px] text-blue-500/80 hover:text-blue-400 hover:underline shrink-0 ml-1 mr-1"
+                         >
+                           Explorer ↗
+                         </a>
+                      )}
+                      <button
+                        onClick={() => handleCopy(e.txHash!)}
+                        className="text-neutral-500 hover:text-white transition-colors ml-1"
+                        title="Copy Transaction Hash"
+                      >
+                        {copiedTx === e.txHash ? (
+                          <span className="text-green-400 text-[10px] font-bold">✓</span>
+                        ) : (
+                          <svg
+                            className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

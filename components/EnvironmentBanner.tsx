@@ -8,29 +8,43 @@ export default function EnvironmentBanner({ config }: Props) {
   const isTestnet = config.networkMode === "testnet";
 
   return (
-    <div className="border border-neutral-800 rounded px-4 py-2.5 bg-neutral-900 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono">
-      {/* Network mode */}
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Network mode pill */}
       <span
-        className={
-          isTestnet ? "text-blue-400 font-semibold" : "text-amber-400 font-semibold"
-        }
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-widest transition-colors ${
+          isTestnet
+            ? "text-blue-400 bg-blue-950/20 border border-blue-900/30"
+            : "text-amber-400 bg-amber-950/20 border border-amber-900/30"
+        }`}
       >
-        {isTestnet ? "CKB Testnet" : "Local Devnet"}
+        <span
+          className={`w-1 h-1 rounded-full ${
+            isTestnet ? "bg-blue-400" : "bg-amber-500"
+          }`}
+        />
+        {isTestnet ? "Testnet" : "Devnet"}
       </span>
 
-      <span className="text-neutral-700">·</span>
+      {/* Executor pill */}
+      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-widest text-neutral-500 bg-neutral-900/40 border border-neutral-800/60 transition-colors hover:bg-neutral-800/60">
+        <span className="w-1 h-1 rounded-full bg-neutral-600" />
+        Executor
+      </span>
 
-      {/* Executor model */}
-      <span className="text-neutral-500">executor: server wallet</span>
-
-      <span className="text-neutral-700">·</span>
-
-      {/* AI parser state */}
-      <span className={config.aiConfigured ? "text-green-500" : "text-neutral-600"}>
-        AI parser:{" "}
-        <span className={config.aiConfigured ? "text-green-400" : "text-neutral-500"}>
-          {config.aiConfigured ? "configured" : "fallback-only"}
-        </span>
+      {/* AI parser pill */}
+      <span
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-widest transition-colors ${
+          config.aiConfigured
+            ? "text-green-500 bg-green-950/20 border border-green-900/30"
+            : "text-neutral-500 bg-neutral-900/40 border border-neutral-800/60"
+        }`}
+      >
+        <span
+          className={`w-1 h-1 rounded-full ${
+            config.aiConfigured ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-neutral-600"
+          }`}
+        />
+        {config.aiConfigured ? "AI Parser" : "Regex Parser"}
       </span>
     </div>
   );

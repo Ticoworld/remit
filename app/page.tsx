@@ -6,6 +6,7 @@ import {
   ApprovalQueueItem,
   EvaluationResult,
   ExecutionLogEntry,
+  ParsedAction,
   ParserUsed,
   RemitPolicy,
 } from "@/lib/types";
@@ -30,8 +31,8 @@ import EvaluationPanel from "@/components/EvaluationPanel";
 import ApprovalQueue from "@/components/ApprovalQueue";
 import HistoryPanel from "@/components/HistoryPanel";
 import EnvironmentBanner from "@/components/EnvironmentBanner";
-import SubmissionNotes from "@/components/SubmissionNotes";
 import DemoOrderHint from "@/components/DemoOrderHint";
+import AgentProposal from "@/components/AgentProposal";
 
 const DEMO_POLICY: RemitPolicy = POLICY_PRESETS[0].policy;
 
@@ -47,11 +48,13 @@ export default function Home() {
 
   // ── Task input (controlled — lifted so reset & presets can set it) ────────────
   const [taskValue, setTaskValue] = useState("");
+  const [lastEvaluatedTask, setLastEvaluatedTask] = useState("");
 
   // ── Current evaluation ───────────────────────────────────────────────────────
   const [isParsing, setIsParsing]             = useState(false);
   const [parseError, setParseError]           = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [lastParsedAction, setLastParsedAction] = useState<ParsedAction | null>(null);
   const [lastResult, setLastResult]           = useState<EvaluationResult | null>(null);
   const [lastParserUsed, setLastParserUsed]   = useState<ParserUsed | null>(null);
   const [lastAiAttempt, setLastAiAttempt]     = useState<AiAttemptRecord | null>(null);
@@ -66,6 +69,9 @@ export default function Home() {
   const [approvalQueue, setApprovalQueue] = useState<ApprovalQueueItem[]>([]);
   const [approvingId, setApprovingId]     = useState<string | null>(null);
   const [approveError, setApproveError]   = useState<ExecErrorInfo | null>(null);
+
+  // ── UX State ─────────────────────────────────────────────────────────────────
+  const [highlightApprovals, setHighlightApprovals] = useState(false);
 
   // ── Execution history ────────────────────────────────────────────────────────
   const [history, setHistory] = useState<ExecutionLogEntry[]>([]);
@@ -98,6 +104,7 @@ export default function Home() {
   function clearEvalState() {
     setParseError(null);
     setValidationError(null);
+    setLastParsedAction(null);
     setLastResult(null);
     setLastParserUsed(null);
     setLastAiAttempt(null);
@@ -106,9 +113,21 @@ export default function Home() {
     setExecError(null);
   }
 
+  useEffect(() => {
+    // If the input changes and diverges from the last evaluated task,
+    // clear the transient state immediately so stale proposal data vanishes.
+    // This keeps the UI tightly strictly bound to the current text input.
+    if (taskValue && lastEvaluatedTask && taskValue !== lastEvaluatedTask) {
+      if (lastResult || parseError || lastParsedAction || lastAiAttempt) {
+        clearEvalState();
+      }
+    }
+  }, [taskValue, lastEvaluatedTask, lastResult, parseError, lastParsedAction, lastAiAttempt]);
+
   function handleReset() {
     setPolicy(DEMO_POLICY);
     setTaskValue("");
+    setLastEvaluatedTask("");
     setHistory([]);
     setApprovalQueue([]);
     clearEvalState();
@@ -116,6 +135,7 @@ export default function Home() {
 
   async function handleTaskSubmit(task: string) {
     clearEvalState();
+    setLastEvaluatedTask(task);
     setIsParsing(true);
 
     try {
@@ -123,6 +143,10 @@ export default function Home() {
         await parseTaskAction(task);
 
       setLastAiAttempt(aiAttempt);
+      if (parsedAction) {
+        setLastParsedAction(parsedAction);
+        setLastParserUsed(parserUsed);
+      }
 
       if (!parsedAction || pErr) {
         setParseError(pErr ?? "Parse failed.");
@@ -132,13 +156,11 @@ export default function Home() {
       const valErr = validateParsedAction(parsedAction);
       if (valErr) {
         setValidationError(valErr);
-        setLastParserUsed(parserUsed);
         return;
       }
 
       const result = evaluateAction(parsedAction, policy);
       setLastResult(result);
-      setLastParserUsed(parserUsed);
 
       const id = crypto.randomUUID();
       setLastEntryId(id);
@@ -179,8 +201,6 @@ export default function Home() {
 
     try {
       // Validate the recipient address with CCC before touching the node.
-      // This catches addresses that passed regex validation but fail the full
-      // bech32/bech32m checksum decode used by the transfer layer.
       const addrErr = await validateAddressOnServer(lastResult.action.recipient);
       if (addrErr) {
         setExecError(friendlyExecError(addrErr));
@@ -210,8 +230,7 @@ export default function Home() {
     setApproveError(null);
 
     try {
-      // Same CCC pre-flight as handleExecute — catches checksum-invalid
-      // addresses before they reach the node.
+      // Same CCC pre-flight as handleExecute.
       const addrErr = await validateAddressOnServer(item.parsedAction.recipient);
       if (addrErr) {
         setApproveError(friendlyExecError(addrErr));
@@ -249,6 +268,21 @@ export default function Home() {
     );
   }
 
+  function handleSeeApprovals() {
+    const isDesktop = window.matchMedia("(min-width: 1280px)").matches;
+    const targetId = isDesktop ? "approval-section-desktop" : "approval-section-mobile";
+    const el = document.getElementById(targetId);
+    
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    
+    setHighlightApprovals(true);
+    setTimeout(() => {
+      setHighlightApprovals(false);
+    }, 1500);
+  }
+
   // ── Derived state ─────────────────────────────────────────────────────────────
   const pipelineStage = isParsing ? "parsing" : lastResult || lastAiAttempt ? "evaluated" : "idle";
   const scenarios = getDemoScenarios(policy);
@@ -257,76 +291,153 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 font-[family-name:var(--font-geist-sans)]">
-      <div className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-8">
 
-        {/* Header */}
-        <header className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Remit</h1>
-              <p className="text-sm text-neutral-400 mt-1">
-                CKB-native permission layer for AI agents. Every proposed action
-                passes through parsing, schema validation, a confidence gate, and
-                deterministic policy evaluation before anything executes.
+      {/* ── Top strip ──────────────────────────────────────────────────────── */}
+      <header className="border-b border-neutral-800/60 bg-neutral-950/90 backdrop-blur-md relative z-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-3 relative">
+          {/* Name + tagline + reset */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow-sm flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                  <path d="m11 17 2 2a1 1 0 1 0 3-3"/>
+                  <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/>
+                  <path d="m21 3 1 11h-2"/>
+                  <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/>
+                  <path d="M3 4h8"/>
+                </svg>
+                Remit
+              </h1>
+              <p className="hidden sm:block text-[13px] font-medium text-neutral-500 tracking-wide">
+                Agent permission layer
               </p>
             </div>
             <button
               onClick={handleReset}
-              className="shrink-0 px-3 py-1.5 text-xs font-medium rounded border border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:border-neutral-500 transition-colors"
+              className="shrink-0 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900 transition-all active:scale-95 flex items-center gap-1.5"
             >
-              Reset Demo
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              Reset
             </button>
           </div>
-          <EnvironmentBanner config={networkConfig} />
+
+          <div className="sm:hidden">
+            <p className="text-[12px] font-medium text-neutral-500 tracking-wide">
+              Agent permission layer
+            </p>
+          </div>
+
+          {/* Status pills */}
+          <div className="pt-0.5">
+            <EnvironmentBanner config={networkConfig} />
+          </div>
+        </div>
+      </header>
+
+      {/* ── Page body ─────────────────────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8 flex flex-col gap-5 sm:gap-8">
+
+        {/* Context + system roles — always visible near top */}
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium text-neutral-400 tracking-wide">
+            Give Remit an agent task. It will allow, queue, or block execution.
+          </p>
           <SystemRoles />
-        </header>
+        </div>
 
-        {/* Submission context */}
-        <SubmissionNotes />
-        <DemoOrderHint />
+        {/* ── Main layout: left column + right rail (desktop) ─────────────── */}
+        <div className="flex flex-col xl:flex-row gap-6 items-stretch xl:items-start">
 
-        {/* Remit policy */}
-        <RemitForm policy={policy} onSave={handlePolicySave} />
+          {/* Left / center column */}
+          <div className="flex-1 min-w-0 flex flex-col gap-5">
 
-        {/* Task input + trust pipeline */}
-        <TaskInput
-          value={taskValue}
-          onChange={setTaskValue}
-          onSubmit={handleTaskSubmit}
-          disabled={false}
-          isProcessing={isParsing}
-          scenarios={scenarios}
-        />
-        <TrustPipeline
-          stage={pipelineStage}
-          aiOutcome={lastAiAttempt?.outcome}
-          evalStatus={lastResult?.status}
-        />
+            {/* Rules */}
+            <RemitForm policy={policy} onSave={handlePolicySave} />
 
-        {/* Evaluation result */}
-        <EvaluationPanel
-          result={lastResult}
-          parseError={parseError}
-          validationError={validationError}
-          parserUsed={lastParserUsed}
-          aiAttempt={lastAiAttempt}
-          onExecute={handleExecute}
-          executing={executing}
-          execError={execError}
-          txHash={lastTxHash}
-          networkConfig={networkConfig}
-        />
+            {/* Demo hint — slim always-visible helper above Ask Remit */}
+            <DemoOrderHint />
+            
+            {/* Runtime State Strip */}
+            <div className="flex flex-wrap items-center gap-1 p-1 bg-black/20 border border-neutral-800/50 rounded-md text-[10px] font-mono font-bold tracking-widest uppercase w-fit selection:bg-transparent mb-1">
+              <span className={`px-2.5 py-1 rounded-sm transition-colors ${(!isParsing && !lastResult) ? "bg-neutral-700 text-white shadow-sm" : "text-neutral-600"}`}>Idle</span>
+              <span className={`px-2.5 py-1 rounded-sm transition-colors ${(isParsing) ? "bg-blue-600/80 text-white shadow-sm animate-pulse" : "text-neutral-600"}`}>Evaluating</span>
+              <span className={`px-2.5 py-1 rounded-sm transition-colors ${(lastResult?.status === "approval-needed" && !lastTxHash) ? "bg-amber-600/80 text-white shadow-sm" : "text-neutral-600"}`}>Awaiting approval</span>
+              <span className={`px-2.5 py-1 rounded-sm transition-colors ${(lastTxHash) ? "bg-green-600/80 text-white shadow-sm" : "text-neutral-600"}`}>Executed</span>
+              <span className={`px-2.5 py-1 rounded-sm transition-colors ${(lastResult?.status === "blocked") ? "bg-red-600/80 text-white shadow-sm" : "text-neutral-600"}`}>Blocked</span>
+            </div>
 
-        {/* Approval queue */}
-        <ApprovalQueue
-          items={approvalQueue}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          approvingId={approvingId}
-          approveError={approveError}
-        />
+            {/* Ask Remit */}
+            <TaskInput
+              value={taskValue}
+              onChange={setTaskValue}
+              onSubmit={handleTaskSubmit}
+              disabled={false}
+              isProcessing={isParsing}
+              scenarios={scenarios}
+            />
 
-        {/* Execution history */}
+            {/* Agent Proposal */}
+            <AgentProposal
+              isParsing={isParsing}
+              parseError={parseError}
+              parsedAction={lastParsedAction}
+              parserUsed={lastParserUsed}
+              aiAttempt={lastAiAttempt}
+            />
+
+            {/* Trust Pipeline */}
+            <TrustPipeline
+              stage={pipelineStage}
+              aiOutcome={lastAiAttempt?.outcome}
+              evalStatus={lastResult?.status}
+            />
+
+            {/* Decision */}
+            <EvaluationPanel
+              result={lastResult}
+              parseError={parseError}
+              validationError={validationError}
+              parserUsed={lastParserUsed}
+              onExecute={handleExecute}
+              onSeeApprovals={handleSeeApprovals}
+              executing={executing}
+              execError={execError}
+              txHash={lastTxHash}
+              networkConfig={networkConfig}
+            />
+
+            {/* Approvals — stacks below Decision on mobile/tablet */}
+            <div className="xl:hidden" id="approval-section-mobile">
+              <ApprovalQueue
+                items={approvalQueue}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                approvingId={approvingId}
+                approveError={approveError}
+                highlight={highlightApprovals}
+              />
+            </div>
+          </div>
+
+          {/* Right rail — sticky on xl+ only */}
+          <div className="hidden xl:block w-80 shrink-0">
+            <div className="sticky top-6" id="approval-section-desktop">
+              <ApprovalQueue
+                items={approvalQueue}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                approvingId={approvingId}
+                approveError={approveError}
+                highlight={highlightApprovals}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Activity — full width below the main grid ────────────────────── */}
         <HistoryPanel
           entries={history}
           onClear={() => setHistory([])}

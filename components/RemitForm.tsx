@@ -113,111 +113,113 @@ export default function RemitForm({ policy, onSave }: Props) {
   }
 
   return (
-    <section className="border border-neutral-700 rounded-lg p-5 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-neutral-100">Remit Policy</h2>
-      </div>
-
-      {/* Policy presets */}
-      <div className="flex flex-col gap-1.5">
-        <p className="text-xs text-neutral-500 uppercase tracking-widest">
-          Presets
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {POLICY_PRESETS.map((preset) => (
-            <button
-              key={preset.name}
-              onClick={() => applyPreset(preset)}
-              title={preset.description}
-              className="px-3 py-1 text-xs font-medium rounded border border-neutral-600 text-neutral-300 hover:border-neutral-400 hover:text-neutral-100 transition-colors"
-            >
-              {preset.name}
-            </button>
-          ))}
+    <section className="border border-neutral-800/50 bg-neutral-900/10 rounded-xl p-5 flex flex-col gap-4 transition-all duration-300 hover:border-neutral-700/50">
+      <div className="flex flex-col gap-4">
+        {/* Section header */}
+        <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-400 tracking-tight flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+              </svg>
+              Rules Configuration
+            </h2>
+          </div>
+          {/* Presets */}
+          <div className="flex flex-wrap gap-1.5 sm:justify-end">
+            {POLICY_PRESETS.map((preset) => (
+              <button
+                key={preset.name}
+                onClick={() => applyPreset(preset)}
+                title={preset.description}
+                className="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded border border-neutral-800 bg-neutral-900/50 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300 transition-all"
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-sm text-neutral-400">
-          Approved recipient addresses{" "}
-          <span className="text-neutral-600">(one per line)</span>
-        </label>
-        <textarea
-          className="bg-neutral-800 border border-neutral-600 rounded px-3 py-2 text-sm font-mono text-neutral-100 resize-none focus:outline-none focus:border-neutral-400"
-          rows={4}
-          value={addresses}
-          onChange={(e) => {
-            setAddresses(e.target.value);
-            setErrors([]);
-          }}
-          placeholder={"ckt1qz...\nckt1qy..."}
-          spellCheck={false}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-neutral-400">
-            Max spend per action{" "}
-            <span className="text-neutral-600">(CKB)</span>
+        {/* Approved addresses */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+            Approved recipients <span className="text-neutral-600 lowercase tracking-normal font-medium">(one per line)</span>
           </label>
-          <input
-            type="number"
-            min="0"
-            step="any"
-            className="bg-neutral-800 border border-neutral-600 rounded px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-neutral-400"
-            value={maxSpend}
+          <textarea
+            className="w-full bg-black/50 border border-neutral-800/60 rounded-md px-3 py-2.5 text-[11px] leading-relaxed font-mono text-neutral-300 resize-y min-h-[60px] focus:outline-none focus:border-neutral-500 focus:bg-neutral-950 transition-colors shadow-inner [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-800/80 [&::-webkit-scrollbar-thumb]:rounded-full"
+            value={addresses}
             onChange={(e) => {
-              setMaxSpend(e.target.value);
+              setAddresses(e.target.value);
               setErrors([]);
             }}
+            placeholder={"ckt1qz...\nckt1qy..."}
+            spellCheck={false}
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-neutral-400">
-            Auto-execute threshold{" "}
-            <span className="text-neutral-600">(CKB)</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="any"
-            className="bg-neutral-800 border border-neutral-600 rounded px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-neutral-400"
-            value={threshold}
-            onChange={(e) => {
-              setThreshold(e.target.value);
-              setErrors([]);
-            }}
-          />
-          <p className="text-xs text-neutral-600">
-            Transfers at or below this amount execute immediately when allowed.
-            Above it: queued for approval.
-          </p>
-        </div>
-      </div>
+        {/* Spend limits */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+              Max spend <span className="text-neutral-600 lowercase tracking-normal font-medium">(ckb)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              className="w-full bg-neutral-950/40 border border-neutral-800/80 rounded-lg px-3 py-2 text-sm text-neutral-300 focus:outline-none focus:border-neutral-600 focus:bg-neutral-900/60 transition-colors"
+              value={maxSpend}
+              onChange={(e) => {
+                setMaxSpend(e.target.value);
+                setErrors([]);
+              }}
+            />
+          </div>
 
-      {/* Validation errors */}
-      {errors.length > 0 && (
-        <div className="border border-red-700 rounded p-3 bg-neutral-900 flex flex-col gap-1">
-          {errors.map((e, i) => (
-            <p key={i} className="text-xs text-red-400">
-              {e}
-            </p>
-          ))}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+              Auto-execute below <span className="text-neutral-600 lowercase tracking-normal font-medium">(ckb)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              className="w-full bg-neutral-950/40 border border-neutral-800/80 rounded-lg px-3 py-2 text-sm text-neutral-300 focus:outline-none focus:border-neutral-600 focus:bg-neutral-900/60 transition-colors"
+              value={threshold}
+              onChange={(e) => {
+                setThreshold(e.target.value);
+                setErrors([]);
+              }}
+            />
+          </div>
         </div>
-      )}
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 bg-neutral-100 text-neutral-900 text-sm font-medium rounded hover:bg-white transition-colors"
-        >
-          Save Policy
-        </button>
-        {saved && (
-          <span className="text-sm text-green-400">Policy saved.</span>
+        {/* Validation errors */}
+        {errors.length > 0 && (
+          <div className="border border-red-900/30 rounded p-2 bg-red-950/10 flex flex-col gap-0.5 mt-1">
+            {errors.map((e, i) => (
+              <p key={i} className="text-[11px] font-medium text-red-400">
+                {e}
+              </p>
+            ))}
+          </div>
         )}
+
+        {/* Save */}
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            onClick={handleSave}
+            className="px-4 py-1.5 bg-neutral-800 text-neutral-300 text-[11px] font-bold uppercase tracking-wider rounded hover:bg-neutral-700 hover:text-white active:scale-95 transition-all border border-neutral-700"
+          >
+            Save Rules
+          </button>
+          {saved && (
+            <span className="text-[11px] text-green-500 font-medium flex items-center gap-1.5 animate-in fade-in zoom-in duration-300">
+              <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+              Saved
+            </span>
+          )}
+        </div>
       </div>
     </section>
   );

@@ -1,46 +1,127 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-ccc-app`](https://github.com/CKBFansDAO/create-ccc-app) 
+# Remit
 
-## Getting Started
+Remit is a permissioned execution runtime for AI agents on CKB.
 
-First, run the development server:
+## Problem
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+AI agents can propose actions, but unrestricted wallet access is unsafe. Users need bounded execution, not blind trust. Remit solves allow, queue, and block routing for proposed on-chain actions.
+
+## Solution
+
+The user defines rules for an execution wallet. When an agent task is interpreted into an Agent Proposal, it is checked against these rules. Remit then decides whether to:
+- allow execution
+- queue for approval
+- block execution
+
+## Core flow
+
+1. **User task:** A natural-language task is submitted.
+2. **AI proposal:** The agent interprets the task into a structured action (asset, amount, recipient).
+3. **Policy engine:** Remit evaluates the proposal against the active Rules Configuration.
+4. **Decision:** Remit outputs the evaluation state (Allowed, Approval-needed, or Blocked).
+
+## Current features
+
+- Configurable rules (approved recipients, max spend, auto-execute thresholds).
+- Natural-language runtime parser with fallback logic.
+- Agent Proposal observability (showing confidence and rationale).
+- Trust Pipeline visualization.
+- Deterministic decision states (Allowed, Approval-needed, Blocked).
+- Integrated Approval Queue with "Approve & Execute" and "Reject" flows.
+- Runtime log with decision and execution history.
+- Toggleable environments (Local Devnet and CKB Testnet).
+- Testnet transaction broadcast with live explorer linking.
+
+## Why this matters for CKB
+
+Remit acts as a permissioned execution runtime for AI agents on CKB. It provides bounded authority for agent wallets, treasury bots, and payment agents, proving that CKB supports controlled agent execution, not just raw automation.
+
+## Tech stack
+
+- **Framework:** Next.js 14
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **Blockchain Interaction:** `@ckb-ccc/connector-react`
+- **Validation:** Zod
+
+## Local setup
+
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Copy the environment template:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+## Environment variables
+
+Configure these in your `.env.local` file:
+
+```env
+# Required for execution
+DEV_SENDER_PRIVATE_KEY=0x...
+REMIT_NETWORK_MODE=local # or testnet
+
+# Required for network connection
+CKB_RPC_URL=http://127.0.0.1:28114
+CKB_EXPLORER_TX_BASE_URL=https://pudge.explorer.nervos.org/transaction/
+
+# Optional: Required for AI parsing capabilities
+ANTHROPIC_BASE_URL=
+ANTHROPIC_AUTH_TOKEN=
+ANTHROPIC_MODEL=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Running locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Local mode uses a local devnet node.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Ensure your CKB node is running at `http://127.0.0.1:28114`.
+2. Set `REMIT_NETWORK_MODE=local` in your `.env.local`.
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open `http://localhost:3000`.
 
-## Learn More
+## Running on testnet
 
-### Next.js
-To learn more about Next.js, take a look at the following resources:
+Testnet mode connects directly to the CKB Testnet and broadcasts real transactions.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Set `REMIT_NETWORK_MODE=testnet` in your `.env.local`.
+2. Update the `CKB_RPC_URL` to point to a testnet node (e.g., `https://testnet.ckb.dev/`).
+3. Ensure your `DEV_SENDER_PRIVATE_KEY` holds testnet CKB.
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Demo scenarios
 
+The UI derives execution logic dynamically from the active "Rules Configuration". To test the evaluation engine, use the built-in **Quick Actions** below the task input. 
 
-### CCC
-To learn more about CCC, take a look at the following resources:
+These chips automatically generate context-aware agent tasks based on your current limits:
+- **Allowed:** Generates a task where the amount is safely below the auto-execute threshold.
+- **Needs Approval:** Generates a task where the amount exceeds the auto-execute threshold but remains below the maximum spend limit.
+- **Blocked:** Generates a task sending funds to an unknown, unapproved recipient address.
 
-- [CCC Documentation](https://docs.ckbccc.com/) - learn about CCC features and API.
-- [CCC Demo](https://app.ckbccc.com) - Code examples for invoking CCC in various use cases.
+## Current limitations
 
-You can check out [the CCC GitHub repository](https://github.com/ckb-devrel/ccc) - your feedback and contributions are welcome!
+- **Server-side executor:** The application currently relies on a single server-side wallet defined via environment variable.
+- **Unified roles:** The policy owner configuring the rules and the executor broadcasting the transactions act as the same identity in this MVP.
+- **Parsing capabilities:** The natural language parser is scoped to "send {amount} to {recipient}" intents.
+- **Secret management:** Standard `.env` secret management is used. It is not production-grade or secure for mainnet funds.
+- **Off-chain enforcement:** The policy logic is currently enforced via application-tier middleware, not natively on-chain as a CKB script.
 
-## Deploy on Vercel
+## Future work
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Transition policy enforcement from application middleware to an on-chain CKB script (smart contract).
+- Abstract the executor role to support multi-wallet architecture and hardware wallet signatures via CCC.
+- Expand intent parsing to handle complex multi-step interactions and varied asset types (e.g., xUDT).
 
-Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT License

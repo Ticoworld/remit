@@ -13,20 +13,20 @@ interface Props {
 type StepState = "idle" | "active" | "pass" | "warn" | "fail" | "skip";
 
 const DOT: Record<StepState, string> = {
-  idle:   "text-neutral-700",
-  active: "text-neutral-400",
-  pass:   "text-green-500",
-  warn:   "text-amber-400",
-  fail:   "text-red-500",
+  idle:   "text-neutral-800",
+  active: "text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]",
+  pass:   "text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)]",
+  warn:   "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]",
+  fail:   "text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]",
   skip:   "text-neutral-800",
 };
 
 const LABEL: Record<StepState, string> = {
-  idle:   "text-neutral-600",
-  active: "text-neutral-300",
-  pass:   "text-neutral-400",
-  warn:   "text-amber-400",
-  fail:   "text-red-400",
+  idle:   "text-neutral-700",
+  active: "text-blue-200",
+  pass:   "text-neutral-300",
+  warn:   "text-amber-200",
+  fail:   "text-red-300",
   skip:   "text-neutral-700",
 };
 
@@ -45,7 +45,8 @@ function computeStates(
   evalStatus?: EvaluationStatus,
 ): StepState[] {
   if (stage === "idle")    return ["idle", "idle", "idle", "idle", "idle", "idle"];
-  if (stage === "parsing") return ["active", "idle", "idle", "idle", "idle", "idle"];
+  // When parsing, visually activate all steps so they can animate sequentially via CSS delays
+  if (stage === "parsing") return ["active", "active", "active", "active", "active", "active"];
 
   // stage === "evaluated"
   const input: StepState = "pass";
@@ -84,22 +85,34 @@ function computeStates(
 
 export default function TrustPipeline({ stage, aiOutcome, evalStatus }: Props) {
   const states = computeStates(stage, aiOutcome, evalStatus);
+  const isIdle = stage === "idle";
+  const isParsing = stage === "parsing";
 
   return (
-    <div className="border border-neutral-800 rounded px-4 py-3">
-      <p className="text-xs text-neutral-600 uppercase tracking-widest mb-2">
-        Trust pipeline
+    <div className={`border border-neutral-800/80 bg-neutral-900/30 rounded-xl px-5 py-3.5 transition-opacity duration-700 ease-in-out ${isIdle ? "opacity-40" : "opacity-100"}`}>
+      <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+        </svg>
+        Trust Pipeline
       </p>
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs font-mono">
-        {STEPS.map((step, i) => (
-          <span key={step} className="flex items-center gap-1">
-            <span className={`${DOT[states[i]]} select-none`}>●</span>
-            <span className={LABEL[states[i]]}>{step}</span>
-            {i < STEPS.length - 1 && (
-              <span className="text-neutral-800 mx-0.5">→</span>
-            )}
-          </span>
-        ))}
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5 text-xs font-mono">
+        {STEPS.map((step, i) => {
+          const delayStyle = isParsing ? { animationDelay: `${i * 150}ms`, animationDuration: "1s" } : {};
+          return (
+            <span 
+              key={step} 
+              className={`flex items-center gap-1 transition-all duration-500 ${isParsing ? "animate-pulse" : ""}`}
+              style={delayStyle}
+            >
+              <span className={`${DOT[states[i]]} select-none text-[10px] transition-colors duration-300`}>●</span>
+              <span className={`${LABEL[states[i]]} transition-colors duration-300`}>{step}</span>
+              {i < STEPS.length - 1 && (
+                <span className="text-neutral-800 mx-0.5">→</span>
+              )}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
