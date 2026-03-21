@@ -1,4 +1,61 @@
-# dependencies
+You are editing an existing Next.js 14 + TypeScript CCC app scaffold.
+
+Goal: transform this scaffold into the first MVP shell for a project called Remit.
+
+Product summary:
+Remit is a CKB-native permission layer for AI agents.
+A user defines a remit with:
+- approved recipient addresses
+- approved asset type = CKB only
+- max spend per action
+- approval threshold
+
+Then the user enters a natural-language task such as:
+send 50 CKB to Alice
+
+The app parses the task into a structured action request and evaluates it against the remit.
+The result must be one of:
+- allowed
+- blocked
+- approval-needed
+
+For this first pass, DO NOT implement real chain execution yet.
+DO implement only the frontend shell and local in-memory logic.
+
+Requirements:
+1. Replace the default landing page with a clean single-page MVP UI.
+2. Add these sections on the page:
+   - header with project name and short description
+   - remit creation form
+   - task input area
+   - evaluation result panel
+   - execution history panel
+3. Use TypeScript types for:
+   - RemitPolicy
+   - ParsedAction
+   - EvaluationResult
+   - ExecutionLogEntry
+4. Add a local parser function that supports only one command pattern:
+   - send {amount} ckb to {address}
+5. Add a local evaluator function:
+   - block if asset is not CKB
+   - block if address is not in approved list
+   - approval-needed if amount is above approval threshold but within max spend
+   - blocked if amount is above max spend
+   - allowed otherwise
+6. Keep all data in React state only. No database.
+7. Do not add external UI libraries.
+8. Keep code simple, readable, and split into small files if useful.
+9. After edits, summarize:
+   - files created
+   - files changed
+   - what is still mocked
+   - exact next step for real devnet transfer integration
+
+Important:
+- preserve buildability
+- do not invent unsupported CKB APIs
+- do not add testnet or mainnet logic yet# dependencies
 node_modules/
 /.pnp
 .pnp.js
