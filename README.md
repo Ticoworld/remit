@@ -15,21 +15,39 @@ The user defines rules for an execution wallet. When an agent task is interprete
 
 ## Core flow
 
+The runtime follows a strict evaluation path:
+
+```mermaid
+flowchart LR
+    A[User Task] --> B[Agent Proposal]
+    B --> C[Policy Check]
+    C --> D[Allowed]
+    C --> E[Approval Needed]
+    C --> F[Blocked]
+    D --> G[Execution]
+    E --> H[Approval Queue]
+    H --> G
+    H --> I[Refusal]
+    F --> I
+    G --> J[Runtime Log]
+    I --> J
+```
+
 1. **User task:** A natural-language task is submitted.
 2. **AI proposal:** The agent interprets the task into a structured action (asset, amount, recipient).
 3. **Policy engine:** Remit evaluates the proposal against the active Rules Configuration.
-4. **Decision:** Remit outputs the evaluation state (Allowed, Approval-needed, or Blocked).
+4. **Decision:** Remit outputs the evaluation state (Allowed, Approval-needed, or Blocked) to route execution.
 
 ## Current features
 
 - Configurable rules (approved recipients, max spend, auto-execute thresholds).
 - Natural-language runtime parser with fallback logic.
-- Agent Proposal observability (showing confidence and rationale).
+- Agent Proposal view showing parsed action details and parser state.
 - Trust Pipeline visualization.
 - Deterministic decision states (Allowed, Approval-needed, Blocked).
 - Integrated Approval Queue with "Approve & Execute" and "Reject" flows.
 - Runtime log with decision and execution history.
-- Toggleable environments (Local Devnet and CKB Testnet).
+- Runs in Local Devnet or CKB Testnet mode depending on configuration.
 - Testnet transaction broadcast with live explorer linking.
 
 ## Why this matters for CKB
@@ -54,6 +72,7 @@ Remit acts as a permissioned execution runtime for AI agents on CKB. It provides
 3. Copy the environment template:
    ```bash
    cp .env.example .env.local
+   # or create .env.local manually from .env.example on Windows
    ```
 
 ## Environment variables
@@ -99,6 +118,16 @@ Testnet mode connects directly to the CKB Testnet and broadcasts real transactio
    npm run dev
    ```
 
+## Hosted demo
+
+Live demo:
+https://remit-one.vercel.app/
+
+Notes:
+- The hosted demo runs in testnet mode.
+- It uses a pre-funded testnet executor wallet.
+- Approved actions generate real CKB testnet transactions.
+
 ## Demo scenarios
 
 The UI derives execution logic dynamically from the active "Rules Configuration". To test the evaluation engine, use the built-in **Quick Actions** below the task input. 
@@ -113,7 +142,7 @@ These chips automatically generate context-aware agent tasks based on your curre
 - **Server-side executor:** The application currently relies on a single server-side wallet defined via environment variable.
 - **Unified roles:** The policy owner configuring the rules and the executor broadcasting the transactions act as the same identity in this MVP.
 - **Parsing capabilities:** The natural language parser is scoped to "send {amount} to {recipient}" intents.
-- **Secret management:** Standard `.env` secret management is used. It is not production-grade or secure for mainnet funds.
+- **Secret management:** Execution uses a server-side private key from environment variables. This is acceptable for testnet demos, not for mainnet production.
 - **Off-chain enforcement:** The policy logic is currently enforced via application-tier middleware, not natively on-chain as a CKB script.
 
 ## Future work
