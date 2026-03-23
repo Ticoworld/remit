@@ -66,41 +66,50 @@ export default function ApprovalQueue({
               <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
 
               {/* Header row */}
-              <div className="flex items-start justify-between gap-3 relative z-10">
-                <div className="flex flex-col gap-1.5">
+              <div className="flex items-start justify-between gap-3 relative z-10 overflow-hidden w-full">
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                   <span className="text-[11px] text-amber-500/80 font-mono uppercase tracking-widest font-semibold flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
                     Requires action
                   </span>
-                  <span className="text-sm font-bold text-white leading-snug">
-                    {item.task}
-                  </span>
+                  <div className="text-sm font-bold text-white leading-snug break-words break-all">
+                    {item.task.split(item.parsedAction.recipient).map((part, i, arr) => (
+                      <span key={i}>
+                        {part}
+                        {i < arr.length - 1 && (
+                          <span className="text-blue-400 font-mono font-medium">{item.parsedAction.recipient}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Action details */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs font-mono bg-black/40 p-3 rounded-lg border border-neutral-800 relative z-10">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-neutral-500 uppercase tracking-widest text-[10px] font-sans">asset</span>
-                  <span className="text-neutral-200 font-semibold">{item.parsedAction.asset}</span>
+              <div className="flex flex-col gap-3 text-xs font-mono bg-black/40 p-3 rounded-lg border border-neutral-800 relative z-10 w-full overflow-hidden">
+                <div className="flex gap-8">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-neutral-500 uppercase tracking-widest text-[10px] font-sans">asset</span>
+                    <span className="text-neutral-200 font-semibold">{item.parsedAction.asset}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-neutral-500 uppercase tracking-widest text-[10px] font-sans">amount</span>
+                    <span className="text-neutral-200 font-semibold">{item.parsedAction.amount}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-neutral-500 uppercase tracking-widest text-[10px] font-sans">amount</span>
-                  <span className="text-neutral-200 font-semibold">{item.parsedAction.amount}</span>
-                </div>
-                <div className="flex flex-col gap-0.5 sm:col-span-1 col-span-2">
+                <div className="flex flex-col gap-0.5 min-w-0 w-full">
                   <span className="text-neutral-500 uppercase tracking-widest text-[10px] font-sans">recipient</span>
-                  <span className="text-neutral-300 break-all">{item.parsedAction.recipient}</span>
+                  <span className="text-neutral-300 break-all leading-relaxed whitespace-pre-wrap">{item.parsedAction.recipient}</span>
                 </div>
               </div>
 
               {/* Reason */}
-              <p className="text-[13px] text-neutral-400 font-medium leading-snug relative z-10">
+              <p className="text-[13px] text-neutral-400 font-medium leading-snug relative z-10 w-full">
                 {item.result.reason}
               </p>
 
               {/* Action buttons */}
-              <div className="flex items-center gap-3 pt-4 border-t border-neutral-800/80 relative z-10">
+              <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-neutral-800/80 relative z-10 w-full">
                 <button
                   onClick={() => onApprove(item.id)}
                   disabled={approvingId === item.id}
